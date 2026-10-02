@@ -13,108 +13,156 @@ const dadosIniciais = [
     { cnpj: "43.955.439/0001-00", nome: "DJ Moveis e Colchoes", vencimento: "2025-11-12" }
 ];
 
-if (!localStorage.getItem('clientes_pastas')) {
+// Inicializa o armazenamento local se estiver vazio
+if (localStorage.getItem('clientes_pastas') === null) {
     localStorage.setItem('clientes_pastas', JSON.stringify(dadosIniciais));
 }
 
-// MÁSCARA AUTOMÁTICA DE CNPJ
+// MÁSCARA DE CNPJ TOTALMENTE LIMPA (Sem expressões regulares complexas que travam editores)
 function aplicarMascaraCNPJ(input) {
-    let valor = input.value.replace(/\D/g, "");
-    if (valor.length > 14) valor = valor.slice(0, 14);
-    if (valor.length > 12) {
-        valor = valor.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})\$/, "\$1.\$2.\$3/\$4-\$5");
-    } else if (valor.length > 8) {
-        valor = valor.replace(/^(\d{2})(\d{3})(\d{3})(\d{1,4})\$/, "\$1.\$2.\$3/\$4");
-    } else if (valor.length > 5) {
-        valor = valor.replace(/^(\d{2})(\d{3})(\d{1,3})\$/, "\$1.\$2.\$3");
-    } else if (valor.length > 2) {
-        valor = valor.replace(/^(\d{2})(\d{1,3})\$/, "\$1.\$2");
+    if (!input) return;
+    
+    // Mantém apenas os números digitados
+    let numeros = "";
+    for (let i = 0; i < input.value.length; i++) {
+        if ("0123456789".indexOf(input.value[i]) !== -1) {
+            numeros += input.value[i];
+        }
     }
-    input.value = valor;
+    
+    // Limita o tamanho ao máximo de um CNPJ (14 dígitos)
+    if (numeros.length > 14) {
+        numeros = numeros.slice(0, 14);
+    }
+    
+    // Monta a máscara manualmente caractere por caractere para orientação do usuário
+    let resultadoFormatado = "";
+    for (let i = 0; i < numeros.length; i++) {
+        if (i === 2 || i === 5) {
+            resultadoFormatado += ".";
+        } else if (i === 8) {
+            resultadoFormatado += "/";
+        } else if (i === 12) {
+            resultadoFormatado += "-";
+        }
+        resultadoFormatado += numeros[i];
+    }
+    
+    input.value = resultadoFormatado;
 }
 
-// VALIDAÇÃO MATEMÁTICA DE CNPJ
+// VALIDAÇÃO MATEMÁTICA SIMPLIFICADA DE CNPJ
 function validarCNPJ(cnpj) {
-    cnpj = cnpj.replace(/[^\d]+/g, '');
-    if (cnpj == '' || cnpj.length !== 14 || /^(\d)\1+\$/.test(cnpj)) return false;
-    let tamanho = cnpj.length - 2;
-    let numeros = cnpj.substring(0, tamanho);
-    let digitos = cnpj.substring(tamanho);
+    let limpo = "";
+    for (let i = 0; i < cnpj.length; i++) {
+        if ("0123456789".indexOf(cnpj[i]) !== -1) limpo += cnpj[i];
+    }
+    
+    if (limpo.length !== 14) return false;
+    
+    // Evita sequências repetidas simples de validação
+    let igual = true;
+    for (let i = 1; i < limpo.length; i++) {
+        if (limpo[i] !== limpo[0]) igual = false;
+    }
+    if (igual) return false;
+    
+    // Cálculo do primeiro dígito verificador
+    let tamanho = 12;
+    let numeros = limpo.substring(0, tamanho);
+    let digitos = limpo.substring(tamanho);
     let soma = 0;
-    let pos = tamanho - 7;
+    let pos = 5;
     for (let i = tamanho; i >= 1; i--) {
-        soma += numeros.charAt(tamanho - i) * pos--;
+        soma += parseInt(numeros.charAt(tamanho - i)) * pos--;
         if (pos < 2) pos = 9;
     }
     let resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
-    if (resultado != digitos.charAt(0)) return false;
-    tamanho = tamanho + 1;
-    numeros = cnpj.substring(0, tamanho);
+    if (resultado !== parseInt(digitos.charAt(0))) return false;
+    
+    // Cálculo do segundo dígito verificador
+    tamanho = 13;
+    numeros = limpo.substring(0, tamanho);
     soma = 0;
-    pos = tamanho - 7;
+    pos = 6;
     for (let i = tamanho; i >= 1; i--) {
-        soma += numeros.charAt(tamanho - i) * pos--;
+        soma += parseInt(numeros.charAt(tamanho - i)) * pos--;
         if (pos < 2) pos = 9;
     }
     resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
-    if (resultado != digitos.charAt(1)) return false;
+    if (resultado !== parseInt(digitos.charAt(1))) return false;
+    
     return true;
 }
 
+// Inicialização segura da interface
 document.addEventListener("DOMContentLoaded", function() {
-    atualizarInterfaceLista();
-
-    const inputCnpj = document.getElementById('cnpj');
-    const inputBusca = document.getElementById('busca');
-
-    inputCnpj.addEventListener('input', function() { aplicarMascaraCNPJ(this); });
-    inputBusca.addEventListener('input', function() { 
-        if (/^\d/.test(this.value.replace(/[^\w]/g, ''))) {
-            aplicarMascaraCNPJ(this);
-        }
-    });
-
-    // Form Cadastro / Edição
-    document.getElementById('formCadastro').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const cnpjVal = inputCnpj.value.trim();
-        const nomeVal = document.getElementById('nome_empresa').value.trim();
-        const dataVal = document.getElementById('data_vencimento').value;
-        const modoEditando = document.getElementById('modo_editando').value;
-
-        if (!validarCNPJ(cnpjVal)) {
-            alert('❌ Erro: O CNPJ digitado é inválido! Por favor, confira os números.');
-            return;
-        }
-
-        let baseAtual = JSON.parse(localStorage.getItem('clientes_pastas')) || [];
-        
-        if (modoEditando) {
-            baseAtual = baseAtual.filter(c => c.cnpj !== modoEditando);
-            document.getElementById('modo_editando').value = "";
-            document.getElementById('btnSubmitForm').innerText = "Cadastrar Cliente";
-            document.getElementById('tituloForm').innerText = "Cadastrar Nova Pasta de Cliente";
-        } else {
-            const existe = baseAtual.some(c => c.cnpj === cnpjVal);
-            if (existe) {
-                alert('Este CNPJ já está cadastrado no sistema!');
-                return;
-            }
-        }
-        
-        baseAtual.push({ cnpj: cnpjVal, nome: nomeVal, vencimento: dataVal });
-        localStorage.setItem('clientes_pastas', JSON.stringify(baseAtual));
-        alert('Dados salvos com sucesso!');
-        this.reset();
+    try {
         atualizarInterfaceLista();
-    });
+
+        const inputCnpj = document.getElementById('cnpj');
+        const inputBusca = document.getElementById('busca');
+
+        if (inputCnpj) {
+            inputCnpj.addEventListener('input', function() { aplicarMascaraCNPJ(this); });
+        }
+        
+        if (inputBusca) {
+            inputBusca.addEventListener('input', function() { 
+                // Aplica formatação se o primeiro caractere digitado for número
+                if (this.value.length > 0 && "0123456789".indexOf(this.value[0]) !== -1) {
+                    aplicarMascaraCNPJ(this);
+                }
+            });
+        }
+
+        const form = document.getElementById('formCadastro');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const cnpjVal = inputCnpj.value.trim();
+                const nomeVal = document.getElementById('nome_empresa').value.trim();
+                const dataVal = document.getElementById('data_vencimento').value;
+                const modoEditando = document.getElementById('modo_editando').value;
+
+                if (!validarCNPJ(cnpjVal)) {
+                    alert('❌ Erro: O CNPJ digitado é inválido! Por favor, confira os números.');
+                    return;
+                }
+
+                let baseAtual = JSON.parse(localStorage.getItem('clientes_pastas')) || [];
+                
+                if (modoEditando) {
+                    baseAtual = baseAtual.filter(c => c.cnpj !== modoEditando);
+                    document.getElementById('modo_editando').value = "";
+                    document.getElementById('btnSubmitForm').innerText = "Cadastrar Cliente";
+                    document.getElementById('tituloForm').innerText = "Cadastrar Nova Pasta de Cliente";
+                } else {
+                    const existe = baseAtual.some(c => c.cnpj === cnpjVal);
+                    if (existe) {
+                        alert('Este CNPJ já está cadastrado no sistema!');
+                        return;
+                    }
+                }
+                
+                baseAtual.push({ cnpj: cnpjVal, nome: nomeVal, vencimento: dataVal });
+                localStorage.setItem('clientes_pastas', JSON.stringify(baseAtual));
+                alert('Dados salvos com sucesso!');
+                form.reset();
+                atualizarInterfaceLista();
+            });
+        }
+    } catch (err) {
+        console.error("Erro na inicialização dos elementos: ", err);
+    }
 });
 
-// Pesquisa Inteligente
+// Mecanismo de Busca Inteligência Individual
 function pesquisarCertificado() {
     const termoBusca = document.getElementById('busca').value.trim().toLowerCase();
     const painel = document.getElementById('alertaResultado');
+    if (!painel) return;
     
     if (!termoBusca) {
         painel.className = "painel-aviso status-erro";
@@ -124,9 +172,17 @@ function pesquisarCertificado() {
     }
 
     const baseAtual = JSON.parse(localStorage.getItem('clientes_pastas')) || [];
+    
+    if (baseAtual.length === 0) {
+        painel.className = "painel-aviso status-erro";
+        painel.innerHTML = "❌ Erro: O banco de dados está vazio. Registre um cliente primeiro.";
+        painel.style.display = "block";
+        return;
+    }
+
     const clienteEncontrado = baseAtual.find(c => 
-        c.cnpj.toLowerCase().includes(termoBusca) || 
-        c.nome.toLowerCase().includes(termoBusca)
+        c.cnpj.toLowerCase().indexOf(termoBusca) !== -1 || 
+        c.nome.toLowerCase().indexOf(termoBusca) !== -1
     );
 
     if (!clienteEncontrado) {
@@ -158,12 +214,9 @@ function pesquisarCertificado() {
 // Controla a alteração de visualização pelos botões de filtro
 function filtrarLista(tipoFiltro, botaoClicado) {
     filtroAtual = tipoFiltro;
-    
-    // Altera a classe ativa dos botões visuais
     const botoes = document.querySelectorAll('.btn-filtro');
     botoes.forEach(b => b.classList.remove('ativo'));
-    botaoClicado.classList.add('ativo');
-    
+    if (botaoClicado) botaoClicado.classList.add('ativo');
     atualizarInterfaceLista();
 }
 
@@ -190,47 +243,4 @@ function deletarEmpresa(cnpjIdentificador) {
         baseAtual = baseAtual.filter(c => c.cnpj !== cnpjIdentificador);
         localStorage.setItem('clientes_pastas', JSON.stringify(baseAtual));
         atualizarInterfaceLista();
-        document.getElementById('alertaResultado').style.display = "none";
-    }
-}
-
-// Renderiza e filtra dinamicamente a listagem de clientes cadastrados
-function atualizarInterfaceLista() {
-    const listaDiv = document.getElementById('listaVisual');
-    const baseAtual = JSON.parse(localStorage.getItem('clientes_pastas')) || [];
-    
-    if (baseAtual.length === 0) {
-        listaDiv.innerHTML = "<p style='color: #666;'>Nenhum registro armazenado.</p>";
-        return;
-    }
-
-    listaDiv.innerHTML = "";
-    let itensExibidos = 0;
-
-    baseAtual.forEach(c => {
-        const dataVenc = new Date(c.vencimento + "T00:00:00");
-        const dif = Math.ceil((dataVenc.getTime() - DATA_HOJE.getTime()) / (1000 * 60 * 60 * 24));
-        
-        let status = 'prazo';
-        let badgeHtml = '';
-        
-        if(dif < 0) {
-            status = 'vencido';
-            badgeHtml = '<span class="badge" style="background-color: var(--status-vencido)">Vencido</span>';
-        } else if (dif <= 30) {
-            status = 'vencer';
-            badgeHtml = '<span class="badge" style="background-color: var(--status-vencer)">À Vencer</span>';
-        } else {
-            status = 'prazo';
-            badgeHtml = '<span class="badge" style="background-color: var(--status-prazo)">No Prazo</span>';
-        }
-
-        // Aplica o filtro selecionado pelo usuário
-        if (filtroAtual === 'todos' || filtroAtual === status) {
-            itensExibidos++;
-            listaDiv.innerHTML += `
-                <div class="item-empresa">
-                    <div>
-                        <strong>${c.nome}</strong> <br>
-                        <small style="color: #666;">CNPJ: ${c.cnpj} | Vencimento: ${dataVenc.toLocaleDateString('pt-BR')} (${dif < 0 ? 'Vencido há ' + Math.abs(dif) : 'Restam ' + dif} dias)</small>
-                    </div>
+        const painel = document.getElementById('alertaResultado');
