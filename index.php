@@ -5,8 +5,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador de Certificados Digitais</title>
-    <!-- Vincula o arquivo de estilos CSS externo -->
     <link rel="stylesheet" href="index.css">
+    <style>
+        /* Estilos adicionais para os botões de filtro */
+        .filtros-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .btn-filtro {
+            background-color: #7f8c8d;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            width: auto;
+        }
+        .btn-filtro:hover { opacity: 0.9; }
+        .btn-filtro.ativo { font-weight: bold; box-shadow: inset 0 0 5px rgba(0,0,0,0.3); }
+        .filtro-todos.ativo { background-color: #2c3e50; }
+        .filtro-prazo.ativo { background-color: #2ecc71; }
+        .filtro-vencer.ativo { background-color: #f1c40f; color: #333; }
+        .filtro-vencido.ativo { background-color: #e74c3c; }
+    </style>
 </head>
 <body>
 
@@ -17,13 +42,15 @@
     </header>
 
     <div class="grid">
-        <!-- Pasta de Cadastro -->
+        <!-- Esquerda: Cadastrar Cliente -->
         <div class="card">
-            <h2>Organizar Nova Pasta de Cliente</h2>
+            <h2 id="tituloForm">Cadastrar Nova Pasta de Cliente</h2>
             <form id="formCadastro">
+                <input type="hidden" id="modo_editando" value="">
+
                 <div class="form-group">
                     <label for="cnpj">CNPJ do Cliente:</label>
-                    <input type="text" id="cnpj" placeholder="00.000.000/0001-00" required>
+                    <input type="text" id="cnpj" placeholder="00.000.000/0001-00" maxlength="18" required>
                 </div>
                 <div class="form-group">
                     <label for="nome_empresa">Nome da Empresa:</label>
@@ -33,32 +60,40 @@
                     <label for="data_vencimento">Data de Vencimento do Certificado:</label>
                     <input type="date" id="data_vencimento" required>
                 </div>
-                <button type="submit">Salvar na Base de Dados</button>
+                <button type="submit" id="btnSubmitForm">Cadastrar Cliente</button>
             </form>
         </div>
 
-        <!-- Pasta de Pesquisa -->
+        <!-- Direita: Pesquisar Situação Individual -->
         <div class="card">
             <h2>Pesquisar Situação do Certificado</h2>
             <div class="form-group">
                 <label for="busca">Digite o CNPJ ou Nome Cadastrado:</label>
-                <input type="text" id="busca" placeholder="Buscar por pasta de dados...">
+                <input type="text" id="busca" placeholder="00.000.000/0001-00 ou Razão Social">
             </div>
             <button type="button" onclick="pesquisarCertificado()">Executar Pesquisa Inteligente</button>
 
-            <!-- Local onde o aviso JavaScript será exibido após a pesquisa -->
             <div id="alertaResultado" class="painel-aviso"></div>
         </div>
     </div>
 
-    <!-- Monitor Geral -->
+    <!-- Baixo: Painel Completo para Ver Clientes Cadastrados -->
     <div class="card" style="margin-top: 20px;">
-        <h2>Pastas de Clientes Ativas no Sistema</h2>
+        <h2>Ver Clientes Cadastrados</h2>
+        
+        <!-- Botões de Filtragem Rápida -->
+        <div class="filtros-container">
+            <button class="btn-filtro filtro-todos ativo" onclick="filtrarLista('todos', this)">📁 Todos</button>
+            <button class="btn-filtro filtro-prazo" onclick="filtrarLista('prazo', this)">✅ No Prazo</button>
+            <button class="btn-filtro filtro-vencer" onclick="filtrarLista('vencer', this)">⏰ À Vencer (30 dias)</button>
+            <button class="btn-filtro filtro-vencido" onclick="filtrarLista('vencido', this)">⚠️ Vencidos</button>
+        </div>
+
+        <!-- Lista onde aparecem as empresas filtradas -->
         <div id="listaVisual" class="lista-empresas"></div>
     </div>
 </div>
 
-<!-- Vincula o script Javascript externo -->
-<script src="script.js"></script>
+<script src="index.js"></script>
 </body>
 </html>

@@ -27,7 +27,6 @@ header {
     margin-bottom: 30px;
 }
 
-/* Sistema de Grid Responsivo */
 .grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -125,4 +124,33 @@ button:hover {
     color: white;
     font-size: 0.8rem;
     font-weight: bold;
+}
+
+/* Botões de Ação na Tabela (Editar e Deletar) */
+.btn-acao {
+    border: none;
+    padding: 6px 12px !important;
+    width: auto !important;
+    font-size: 0.85rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+    color: white !important;
+    font-weight: normal !important;
+}
+
+.btn-editar {
+    background-color: #f39c12 !important;
+}
+
+.btn-editar:hover {
+    background-color: #e67e22 !important;
+}
+
+.btn-deletar {
+    background-color: #e74c3c !important;
+}
+
+.btn-deletar:hover {
+    background-color: #c0392b !important;
 }
